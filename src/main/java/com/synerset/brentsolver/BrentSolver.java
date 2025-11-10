@@ -6,9 +6,7 @@ import java.util.logging.Logger;
 
 import static com.synerset.brentsolver.BrentSolverValidators.requireNonInfiniteAndNonNANResults;
 import static com.synerset.brentsolver.BrentSolverValidators.requireNonNull;
-import static com.synerset.brentsolver.InterpolationAlgorithms.inverseQuadraticInterpolation;
-import static com.synerset.brentsolver.InterpolationAlgorithms.linearInterpolationFromValue;
-import static com.synerset.brentsolver.InterpolationAlgorithms.secantMethod;
+import static com.synerset.brentsolver.InterpolationAlgorithms.*;
 
 /**
  * BRENT-DEKKER ITERATIVE SOLVER - MODIFIED ALGORITHM PROPOSED BY Zhengqiu Zhang / International Journal of Experimental<br>
@@ -54,6 +52,8 @@ public class BrentSolver {
     private boolean showDiagnostics;
     private boolean showSummary;
 
+    private boolean failForNaN;
+
     private static final Logger LOGGER = Logger.getLogger(BrentSolver.class.getName());
 
     /**
@@ -91,6 +91,7 @@ public class BrentSolver {
         this.evalCycles = BrentSolverDefaults.DEF_EVAL_CYCLES;
         this.evalDividerX2Value = BrentSolverDefaults.DEF_EVAL_X2_COEF;
         this.evalDividerX2 = BrentSolverDefaults.DEF_EVAL_X2_VALUE_COEF;
+        this.failForNaN = true;
     }
 
     // Calculation methods
@@ -167,7 +168,12 @@ public class BrentSolver {
             }
 
             // Exception will be thrown if NaN or Infinite values are detected
-            requireNonInfiniteAndNonNANResults(name, f_a, f_b, f_c, f_s);
+            if (failForNaN) {
+                requireNonInfiniteAndNonNANResults(name, f_a, f_b, f_c, f_s);
+            } else if (BrentSolverValidators.containsInfOrNan(f_a, f_b, f_c, f_s, s)) {
+                runFlag = false;
+                log("Solver stopped, NaN or Inf result detected. Solution is not converged.");
+            }
 
             /*-----------END OF ITERATIVE LOOP-----------*/
         }
@@ -235,6 +241,15 @@ public class BrentSolver {
         evalDividerX2 = BrentSolverDefaults.DEF_EVAL_X2_COEF;
         evalDividerX2Value = BrentSolverDefaults.DEF_EVAL_X2_VALUE_COEF;
     }
+
+    public boolean isFailForNaN() {
+        return failForNaN;
+    }
+
+    public void setFailForNaN(boolean failForNaN) {
+        this.failForNaN = failForNaN;
+    }
+
 
     // Getters, setters
 
@@ -384,7 +399,7 @@ public class BrentSolver {
         // If at this stage proper A-B condition is not achievable - an exception is thrown.
         if (initialABConditionIsNotMet()) {
             String errorMsg = String.format("%s: EVALUATION PROCEDURE FAILED: f(a) i f(b) must have an opposite signs. " +
-                                            "Current values: a = %.3f, b = %.3f, f(a)= %.3f, f(b)=%.3f", name, a, b, f_a, f_b);
+                    "Current values: a = %.3f, b = %.3f, f(a)= %.3f, f(b)=%.3f", name, a, b, f_a, f_b);
             log(Level.SEVERE, errorMsg);
             throw new BrentSolverException(errorMsg);
         }
@@ -483,7 +498,7 @@ public class BrentSolver {
 
             logCurrentSolutionStatus("STEP " + i + ":");
 
-            if(accuracyRequirementIsMet()){
+            if (accuracyRequirementIsMet()) {
                 return;
             }
 

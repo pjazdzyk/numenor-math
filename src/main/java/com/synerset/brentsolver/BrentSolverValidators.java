@@ -21,4 +21,15 @@ class BrentSolverValidators {
         }
     }
 
+    public static boolean containsInfOrNan(double... values) {
+        for (double num : values) {
+            if (Double.isInfinite(num))
+                return true;
+            if (Double.isNaN(num))
+                return true;
+        }
+
+        return false;
+    }
+
 }
