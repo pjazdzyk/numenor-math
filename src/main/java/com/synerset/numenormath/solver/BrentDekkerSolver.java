@@ -1,12 +1,14 @@
-package com.synerset.brentsolver;
+package com.synerset.numenormath.solver;
+
+import com.synerset.numenormath.exception.NumenorSolverException;
 
 import java.util.function.DoubleUnaryOperator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.synerset.brentsolver.BrentSolverValidators.requireNonInfiniteAndNonNANResults;
-import static com.synerset.brentsolver.BrentSolverValidators.requireNonNull;
-import static com.synerset.brentsolver.InterpolationAlgorithms.*;
+import static com.synerset.numenormath.solver.NumenorValidators.requireNonInfiniteAndNonNANResults;
+import static com.synerset.numenormath.solver.NumenorValidators.requireNonNull;
+import static com.synerset.numenormath.util.InterpolationAlgorithms.*;
 
 /**
  * BRENT-DEKKER ITERATIVE SOLVER - MODIFIED ALGORITHM PROPOSED BY Zhengqiu Zhang / International Journal of Experimental<br>
@@ -27,7 +29,19 @@ import static com.synerset.brentsolver.InterpolationAlgorithms.*;
  * <a href="http://synerset.com/">www.synerset.com</a><br>
  */
 
-public class BrentSolver {
+public class BrentDekkerSolver implements MathSolver {
+
+    // DEFAULTS:
+    public static final String DEF_NAME = "DefaultBrentSolver"; // default name
+    public static final double DEF_A0 = -50;                    // initial guess or arbitrarily assumed value to get opposite (negative and positive) result from tested equation
+    public static final double DEF_B0 = 50;                     // initial guess or arbitrarily assumed value to get opposite (negative and positive) result from tested equation
+    public static final double DEF_ITERATIONS = 100;            // default limit of iterations
+    public static final double DEF_ACCURACY = 1E-11;            // expected accuracy level
+    public static final int DEF_EVAL_CYCLES = 5;                // number of evaluation cycles for counterpart evaluation procedure
+    public static final int DEF_EVAL_X2_COEF = 2;               // divider coefficient used in counterpart evaluation
+    public static final int DEF_EVAL_X2_VALUE_COEF = 2;         // divider coefficient used in counterpart evaluation
+
+    // PROPERTIES
 
     private final String name;
 
@@ -54,20 +68,20 @@ public class BrentSolver {
 
     private boolean failForNaN;
 
-    private static final Logger LOGGER = Logger.getLogger(BrentSolver.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(BrentDekkerSolver.class.getName());
 
     /**
      * Initializes solver instance with function output set as 0, with default name.
      */
-    public BrentSolver() {
-        this(BrentSolverDefaults.DEF_NAME, x -> 0, BrentSolverDefaults.DEF_A0, BrentSolverDefaults.DEF_B0);
+    public BrentDekkerSolver() {
+        this(DEF_NAME, x -> 0, DEF_A0, DEF_B0);
     }
 
     /**
      * Initializes solver instance with function output set as 0, with specified name
      */
-    public BrentSolver(String name) {
-        this(name, x -> 0, BrentSolverDefaults.DEF_A0, BrentSolverDefaults.DEF_B0);
+    public BrentDekkerSolver(String name) {
+        this(name, x -> 0, DEF_A0, DEF_B0);
     }
 
     /**
@@ -79,18 +93,18 @@ public class BrentSolver {
      * @param a0                lower bound counterpart point, also referred as "a"
      * @param b0                upper bound counterpart point, also referred as "b"
      */
-    public BrentSolver(String name, DoubleUnaryOperator functionToCompute, double a0, double b0) {
+    public BrentDekkerSolver(String name, DoubleUnaryOperator functionToCompute, double a0, double b0) {
         requireNonNull("functionToCompute", functionToCompute);
-        this.name = name == null ? BrentSolverDefaults.DEF_NAME : name;
+        this.name = name == null ? DEF_NAME : name;
         this.userFunction = functionToCompute;
         this.a0 = a0;
         this.b0 = b0;
         this.runFlag = true;
-        this.iterationsLimit = BrentSolverDefaults.DEF_ITERATIONS;
-        this.accuracy = BrentSolverDefaults.DEF_ACCURACY;
-        this.evalCycles = BrentSolverDefaults.DEF_EVAL_CYCLES;
-        this.evalDividerX2Value = BrentSolverDefaults.DEF_EVAL_X2_COEF;
-        this.evalDividerX2 = BrentSolverDefaults.DEF_EVAL_X2_VALUE_COEF;
+        this.iterationsLimit = DEF_ITERATIONS;
+        this.accuracy = DEF_ACCURACY;
+        this.evalCycles = DEF_EVAL_CYCLES;
+        this.evalDividerX2Value = DEF_EVAL_X2_COEF;
+        this.evalDividerX2 = DEF_EVAL_X2_VALUE_COEF;
         this.failForNaN = true;
     }
 
@@ -128,13 +142,14 @@ public class BrentSolver {
             // Checking current results and swap if needed
             if (c > s) {
                 double tempC = c;
-                double tempS = s;
-                c = tempS;
+                c = s;
                 s = tempC;
+                // f_c must be recomputed since c changed, but s gets old c's value
+                f_s = f_c;
+                f_c = userFunction.applyAsDouble(c);
+            } else {
+                f_s = userFunction.applyAsDouble(s);
             }
-
-            f_c = userFunction.applyAsDouble(c);
-            f_s = userFunction.applyAsDouble(s);
 
             if (f_c * f_s < 0) {
                 a = s;
@@ -170,7 +185,7 @@ public class BrentSolver {
             // Exception will be thrown if NaN or Infinite values are detected
             if (failForNaN) {
                 requireNonInfiniteAndNonNANResults(name, f_a, f_b, f_c, f_s);
-            } else if (BrentSolverValidators.containsInfOrNan(f_a, f_b, f_c, f_s, s)) {
+            } else if (NumenorValidators.containsInfOrNan(f_a, f_b, f_c, f_s, s)) {
                 runFlag = false;
                 log("Solver stopped, NaN or Inf result detected. Solution is not converged.");
             }
@@ -220,7 +235,7 @@ public class BrentSolver {
     /**
      * Resets flags and iteration counter
      */
-    public void resetSolverRunFlags() {
+    public void resetSolver() {
         this.runFlag = true;
         this.counter = 0;
     }
@@ -229,17 +244,17 @@ public class BrentSolver {
      * Resets counter part points to default values (+50,-50);
      */
     public void resetCounterPartPoints() {
-        a0 = BrentSolverDefaults.DEF_A0;
-        b0 = BrentSolverDefaults.DEF_B0;
+        a0 = DEF_A0;
+        b0 = DEF_B0;
     }
 
     /**
      * Resets evaluation procedure coefficients to default values.
      */
     public void resetEvaluationCoefficients() {
-        evalCycles = BrentSolverDefaults.DEF_EVAL_CYCLES;
-        evalDividerX2 = BrentSolverDefaults.DEF_EVAL_X2_COEF;
-        evalDividerX2Value = BrentSolverDefaults.DEF_EVAL_X2_VALUE_COEF;
+        evalCycles = DEF_EVAL_CYCLES;
+        evalDividerX2 = DEF_EVAL_X2_COEF;
+        evalDividerX2Value = DEF_EVAL_X2_VALUE_COEF;
     }
 
     public boolean isFailForNaN() {
@@ -260,7 +275,7 @@ public class BrentSolver {
      */
     public void setFunction(DoubleUnaryOperator func) {
         this.userFunction = func;
-        resetSolverRunFlags();
+        resetSolver();
     }
 
     /**
@@ -272,7 +287,7 @@ public class BrentSolver {
     public void setCounterpartPoints(double pointA, double pointB) {
         this.a0 = pointA;
         this.b0 = pointB;
-        resetSolverRunFlags();
+        resetSolver();
     }
 
     /**
@@ -370,7 +385,7 @@ public class BrentSolver {
      *
      * @return iteration count
      */
-    public int getCounter() {
+    public int lastResultIterationCount() {
         return counter;
     }
 
@@ -401,7 +416,7 @@ public class BrentSolver {
             String errorMsg = String.format("%s: EVALUATION PROCEDURE FAILED: f(a) i f(b) must have an opposite signs. " +
                     "Current values: a = %.3f, b = %.3f, f(a)= %.3f, f(b)=%.3f", name, a, b, f_a, f_b);
             log(Level.SEVERE, errorMsg);
-            throw new BrentSolverException(errorMsg);
+            throw new NumenorSolverException(errorMsg);
         }
 
         log("Condition evaluation successful.");
@@ -414,7 +429,7 @@ public class BrentSolver {
      *
      * @param showDebugLogs true = on, false = off
      */
-    public void showDebugLogs(boolean showDebugLogs) {
+    public void toggleDebugLogs(boolean showDebugLogs) {
         this.showDiagnostics = showDebugLogs;
     }
 
@@ -423,7 +438,7 @@ public class BrentSolver {
      *
      * @param showSummaryLogs true = on, false = off
      */
-    public void showSummaryLogs(boolean showSummaryLogs) {
+    public void toggleSummaryLogs(boolean showSummaryLogs) {
         this.showSummary = showSummaryLogs;
     }
 
@@ -441,8 +456,9 @@ public class BrentSolver {
         if (Math.abs(f_a) < Math.abs(f_b)) {
             a = pointB;
             b = pointA;
-            f_a = userFunction.applyAsDouble(a);
-            f_b = userFunction.applyAsDouble(b);
+            double temp = f_a;
+            f_a = f_b;
+            f_b = temp;
         } else {
             a = pointA;
             b = pointB;
@@ -454,25 +470,36 @@ public class BrentSolver {
     /**
      * This method attempts to evaluate valid Brent Solver counterpart point condition. <p>
      * PROCEDURE EXPLANATION <br>
-     * Using linear extrapolation to determine opposite sign of the "b" value. <br>
+     * Phase 1: Uses linear extrapolation to determine opposite sign of the "b" value. <br>
      * 1. Linear extrapolations needs a pair of points: P1(x1,f_x1), P2(x2,f_x2) and f_y to determine x. <br>
      * 2. First point is already provided (b, f_b) and it is already evaluated to be closer to the root <br>
      * 3. Second point P2 is created from b/evalX2Divider and its function value. <br>
      * 4. f_x is an x value we expect to have an opposite sign to -b, and to make it closer to the root - it is divided by evalXDivider <br>
      * 5. In some cases initial values of evalX2Divider and evalXDivider may be adjusted by user. For an example if your initial guess is very close to the root
-     * you are looking for small evalXDivider values, like 2 or even 1.
+     * you are looking for small evalXDivider values, like 2 or even 1. <br>
+     * Phase 2 (fallback): Exponential bracket expansion - doubles the interval width in each step,
+     * searching outward in both directions for a sign change. This handles strongly nonlinear functions
+     * where linear extrapolation fails.
      */
     private void runCounterPartConditionEvaluator() {
         log("EVALUATION PROCEDURE:");
         logCurrentSolutionStatus("INITIAL");
 
-        double x, f_x, x1, f_x1, x2, f_x2, f_xExact;
-
-        if (evalDividerX2Value > evalCycles) {
-            evalCycles = evalDividerX2Value;
+        // Phase 1: Original linear extrapolation approach
+        if (runLinearExtrapolationEvaluation()) {
+            return;
         }
 
-        for (int i = 0; i <= evalCycles; i++) {
+        // Phase 2: Exponential bracket expansion fallback
+        runBracketExpansionEvaluation();
+    }
+
+    private boolean runLinearExtrapolationEvaluation() {
+        double x, f_x, x1, f_x1, x2, f_x2, f_xExact;
+
+        int effectiveEvalCycles = Math.max(evalCycles, evalDividerX2Value);
+
+        for (int i = 0; i <= effectiveEvalCycles; i++) {
 
             if (evalDividerX2Value - i == 0.0) {
                 continue;
@@ -482,8 +509,12 @@ public class BrentSolver {
             x1 = b;
             f_x1 = f_b;
 
-            // Point 2, creating second point from the b
-            x2 = b / evalDividerX2;
+            // Point 2, creating second point from the b - with safeguard for b near zero
+            if (Math.abs(b) < accuracy) {
+                x2 = 1.0 / evalDividerX2;
+            } else {
+                x2 = b / evalDividerX2;
+            }
             f_x2 = userFunction.applyAsDouble(x2);
 
             // Point 3, searching for a negative value of -f_b. Further division is to get result as close to the root as possible.
@@ -499,11 +530,53 @@ public class BrentSolver {
             logCurrentSolutionStatus("STEP " + i + ":");
 
             if (accuracyRequirementIsMet()) {
-                return;
+                return true;
             }
 
-            if (f_xExact * f_x1 < 0)
-                break;
+            if (f_xExact * f_x1 < 0) {
+                return !initialABConditionIsNotMet();
+            }
+        }
+
+        return !initialABConditionIsNotMet();
+    }
+
+    private void runBracketExpansionEvaluation() {
+        log("LINEAR EXTRAPOLATION FAILED. Starting bracket expansion...");
+
+        double lower = a;
+        double upper = b;
+        double f_lower = f_a;
+        double f_upper = f_b;
+
+        double span = Math.abs(upper - lower);
+        if (span < accuracy) {
+            span = 1.0;
+        }
+
+        for (int i = 0; i < evalCycles * 4; i++) {
+            lower = lower - span;
+            upper = upper + span;
+            span *= 2;
+
+            f_lower = userFunction.applyAsDouble(lower);
+            f_upper = userFunction.applyAsDouble(upper);
+
+            if (NumenorValidators.containsInfOrNan(f_lower, f_upper)) {
+                continue;
+            }
+
+            log(String.format("BRACKET EXPANSION step %d: lower=%.5f, upper=%.5f, f(lower)=%.5f, f(upper)=%.5f", i, lower, upper, f_lower, f_upper));
+
+            if (f_lower * f_upper < 0) {
+                a = lower;
+                b = upper;
+                f_a = f_lower;
+                f_b = f_upper;
+                checkSetAndSwapABPoints(a, b);
+                log("Bracket expansion successful.");
+                return;
+            }
         }
     }
 
@@ -550,20 +623,20 @@ public class BrentSolver {
      * @return calculated root
      */
     public static double findRootOf(DoubleUnaryOperator func, double a0, double b0) {
-        BrentSolver solver = BrentSolver.of(func, a0, b0);
+        BrentDekkerSolver solver = BrentDekkerSolver.of(func, a0, b0);
         return solver.findRoot();
     }
 
-    public static BrentSolver of() {
-        return new BrentSolver();
+    public static BrentDekkerSolver of() {
+        return new BrentDekkerSolver();
     }
 
-    public static BrentSolver of(String name) {
-        return new BrentSolver(name, x -> 0, BrentSolverDefaults.DEF_A0, BrentSolverDefaults.DEF_B0);
+    public static BrentDekkerSolver of(String name) {
+        return new BrentDekkerSolver(name, x -> 0, DEF_A0, DEF_B0);
     }
 
-    public static BrentSolver of(DoubleUnaryOperator functionToCompute, double a0, double b0) {
-        return new BrentSolver(BrentSolverDefaults.DEF_NAME, functionToCompute, a0, b0);
+    public static BrentDekkerSolver of(DoubleUnaryOperator functionToCompute, double a0, double b0) {
+        return new BrentDekkerSolver(DEF_NAME, functionToCompute, a0, b0);
     }
 
 }

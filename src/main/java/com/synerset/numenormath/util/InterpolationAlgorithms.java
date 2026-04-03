@@ -1,4 +1,4 @@
-package com.synerset.brentsolver;
+package com.synerset.numenormath.util;
 
 public class InterpolationAlgorithms {
 
@@ -53,8 +53,8 @@ public class InterpolationAlgorithms {
      */
     public static double inverseQuadraticInterpolation(double x2, double x1, double xn, double f_x2, double f_x1, double f_xn) {
         return x2 * f_x1 * f_xn / ((f_x2 - f_x1) * (f_x2 - f_xn))
-               + x1 * f_x2 * f_xn / ((f_x1 - f_x2) * (f_x1 - f_xn))
-               + xn * f_x2 * f_x1 / ((f_xn - f_x2) * (f_xn - f_x1));
+                + x1 * f_x2 * f_xn / ((f_x1 - f_x2) * (f_x1 - f_xn))
+                + xn * f_x2 * f_x1 / ((f_xn - f_x2) * (f_xn - f_x1));
     }
 
     /**
