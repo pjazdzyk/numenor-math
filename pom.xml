@@ -4,9 +4,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <name>Brent Dekker Solver</name>
-    <description>The algorithm for finding roots of continuous and single-variable math functions,
-        based on a modified version of the Brent-Dekker algorithm.
+    <name>Numenor Math</name>
+    <description>A Java library providing numerical root-finding solvers for single-variable equations,
+        including the Brent-Dekker bracketing method and the Newton-Raphson derivative-based method,
+        along with mathematical utilities and exception handling.
     </description>
     <url>https://github.com/pjazdzyk/brent-dekker-solver</url>
 
